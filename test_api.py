@@ -1,5 +1,4 @@
-import os
-
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,40 +7,57 @@ from api import api
 client = TestClient(api)
 
 
-# def test_synthesize_success(tmp_path, monkeypatch):
-#     # Patch out_dir to tmp_path for isolation
-#     # monkeypatch.setattr("os.makedirs", lambda *a, **k: None)
-#     # monkeypatch.setattr("os.path.join", lambda *a: str(tmp_path.joinpath(a[-1])))
-#     monkeypatch.setattr("os.makedirs", lambda *a, **k: None)
-#     monkeypatch.setattr("api.datetime", __import__("datetime"))
-#     # monkeypatch.setattr("api.out_dir", str(tmp_path))
-#     # Patch sf.write to avoid actual file writing
-#     import api
-#
-#     monkeypatch.setattr(api.sf, "write", lambda *a, **k: None)
-#
-#     # Patch pipeline to return fake audio
-#     class FakeGen:
-#         def __iter__(self):
-#             return self
-#
-#         def __next__(self):
-#             raise StopIteration
-#
-#     monkeypatch.setattr(
-#         api, "pipeline", lambda *a, **k: [(None, None, [0.1, 0.2, 0.3])]
-#     )
-#     response = client.post("/tts", data={"text": "hello", "voice": "af_heart"})
-#     assert response.status_code == 200
-#     print(response)
-#     # assert "file_path" in response.json()
+def test_synthesize_success(tmp_path, monkeypatch):
+    """Test successful synthesis returns 200 and file path."""
+    # Import here so monkeypatches apply
+    import api
+
+    # Set fixed timestamp for predictable filename
+    class MockDatetime:
+        @staticmethod
+        def now():
+            class MockNow:
+                @staticmethod
+                def strftime(format_str):
+                    return "20240101_120000"
+
+            return MockNow()
+
+    monkeypatch.setattr(api, "datetime", MockDatetime)
+
+    # Avoid making directories
+    monkeypatch.setattr("os.makedirs", lambda *a, **k: None)
+
+    # Avoid writing files
+    monkeypatch.setattr(api.sf, "write", lambda *a, **k: None)
+
+    # Create fake audio generator that pipeline would return
+    def fake_pipeline(*args, **kwargs):
+        yield (None, None, np.array([0.1, 0.2, 0.3]))
+
+    monkeypatch.setattr(api, "pipeline", fake_pipeline)
+
+    # Test API
+    response = client.post("/tts", data={"text": "hello", "voice": "af_heart"})
+
+    # If test fails, show error content
+    if response.status_code != 200:
+        print(f"Error: {response.json()}")
+
+    assert response.status_code == 200
+    assert response.json() == {"file_path": "out/20240101_120000.wav"}
 
 
 def test_synthesize_error(monkeypatch):
-    monkeypatch.setattr(
-        "api.pipeline", lambda *a, **k: (_ for _ in ()
-                                         ).throw(Exception("fail"))
-    )
+    """Test that exceptions return 500 status code."""
+    import api
+
+    # Make pipeline throw exception
+    def fake_error_pipeline(*args, **kwargs):
+        raise Exception("Test error")
+
+    monkeypatch.setattr(api, "pipeline", fake_error_pipeline)
+
     response = client.post("/tts", data={"text": "fail"})
     assert response.status_code == 500
     assert "error" in response.json()

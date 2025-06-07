@@ -4,7 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import soundfile as sf
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form
 from fastapi.responses import JSONResponse
 from kokoro import KPipeline
 from pydantic import BaseModel
