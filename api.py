@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from kokoro import KPipeline
 from pydantic import BaseModel
 
-app = FastAPI()
+api = FastAPI()
 pipeline = KPipeline(lang_code="a")
 
 
@@ -18,7 +18,7 @@ class SynthesizeRequest(BaseModel):
     voice: str = "af_heart"
 
 
-@app.post("/tts")
+@api.post("/tts")
 async def tts(text: str = Form(...), voice: str = Form("af_heart")):
     try:
         generator = pipeline(text, voice=voice)
