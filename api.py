@@ -51,7 +51,9 @@ class SynthesizeRequest(BaseModel):
 
 
 @api.post("/tts")
-async def tts(text: str = Form(...), voice: str = Form("af_heart")):
+async def tts(
+    text: str = Form(...), voice: str = Form("af_heart"), file_path: str = Form(...)
+):
     try:
         generator = pipeline(text, voice=voice)
         audio_list = []
@@ -61,8 +63,9 @@ async def tts(text: str = Form(...), voice: str = Form("af_heart")):
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_dir = "out"
         os.makedirs(out_dir, exist_ok=True)
-        file_path = os.path.join(out_dir, f"{now}.wav")
-        sf.write(file_path, merged, 24000)
-        return JSONResponse({"file_path": file_path})
+        file_path_date = os.path.join(out_dir, f"{now}.wav")
+        fp = file_path if file_path else file_path_date
+        sf.write(fp, merged, 24000)
+        return JSONResponse({"file_path": fp})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
