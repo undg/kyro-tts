@@ -14,18 +14,17 @@ disable_embedding: true
 
 Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
 
-TTS for kraken.
+TTS for (kyro)[https://github.com/undg/kyro] (private)
 
 Base on Kokoro and Gradio
 
 ```bash
-make activate
-
-python app.py
-# OR
-python app2.py
-# OR
-python api.py
+make run
 ```
 
+Generate voice:
+
+```bash
+curl -X POST -F "text=test voice" -F "voice=bf_lily" -F "file_path=1.wav" http://localhost:8000/tts
+```
 
