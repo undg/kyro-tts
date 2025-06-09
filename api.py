@@ -1,7 +1,9 @@
 #!/bin/python
+import logging
 import os
 from datetime import datetime
 
+import colorlog
 import numpy as np
 import soundfile as sf
 from fastapi import FastAPI, Form
@@ -9,7 +11,17 @@ from fastapi.responses import JSONResponse
 from kokoro import KPipeline
 from pydantic import BaseModel
 
+handler = colorlog.StreamHandler()
+handler.setFormatter(
+    colorlog.ColoredFormatter(
+        "%(log_color)s%(levelname)s%(reset)s: [%(asctime)s]  %(name)s %(message)s"
+    )
+)
+
+logging.basicConfig(level=logging.INFO, handlers=[handler])
+
 api = FastAPI()
+
 pipeline = KPipeline(lang_code="a")
 
 
@@ -55,6 +67,10 @@ async def tts(
     text: str = Form(...), voice: str = Form("af_heart"), file_path: str = Form(...)
 ):
     try:
+        logging.info(
+            f"Received TTS request: text='{text[:30]}...', voice='{
+                voice}', file_path='{file_path}'"
+        )
         generator = pipeline(text, voice=voice)
         audio_list = []
         for _, _, audio in generator:
@@ -65,7 +81,10 @@ async def tts(
         os.makedirs(out_dir, exist_ok=True)
         file_path_date = os.path.join(out_dir, f"{now}.wav")
         fp = file_path if file_path else file_path_date
+        logging.info(f"Writing audio to '{fp}'")
         sf.write(fp, merged, 24000)
+        logging.info(f"Audio written successfully: '{fp}'")
         return JSONResponse({"file_path": fp})
     except Exception as e:
+        logging.error(f"Error in TTS: {e}", exc_info=True)
         return JSONResponse({"error": str(e)}, status_code=500)
